@@ -113,7 +113,7 @@ TcpReassembly::~TcpReassembly()
 	}
 }
 
-void TcpReassembly::reassemblePacket(Packet& tcpData)
+void TcpReassembly::reassemblePacket(Packet& tcpData, uint32_t packet_id)
 {
 	// automatic cleanup
 	if (m_RemoveConnInfo == true)
@@ -124,6 +124,8 @@ void TcpReassembly::reassemblePacket(Packet& tcpData)
 			m_PurgeTimepoint = time(NULL) + PURGE_FREQ_SECS;
 		}
 	}
+
+
 
 	// get IP layer
 	Layer* ipLayer = NULL;
@@ -349,7 +351,7 @@ void TcpReassembly::reassemblePacket(Packet& tcpData)
 		// send data to the callback
 		if (tcpPayloadSize != 0 && m_OnMessageReadyCallback != NULL)
 		{
-			TcpStreamData streamData(tcpLayer->getLayerPayload(), tcpPayloadSize, tcpReassemblyData->connData);
+			TcpStreamData streamData(tcpLayer->getLayerPayload(), tcpPayloadSize, tcpReassemblyData->connData, packet_id);
 			m_OnMessageReadyCallback(sideIndex, streamData, m_UserCookie);
 		}
 
@@ -383,7 +385,7 @@ void TcpReassembly::reassemblePacket(Packet& tcpData)
 			// send only the new data to the callback
 			if (m_OnMessageReadyCallback != NULL)
 			{
-				TcpStreamData streamData(tcpLayer->getLayerPayload() + newLength, tcpPayloadSize - newLength, tcpReassemblyData->connData);
+				TcpStreamData streamData(tcpLayer->getLayerPayload() + newLength, tcpPayloadSize - newLength, tcpReassemblyData->connData, packet_id);
 				m_OnMessageReadyCallback(sideIndex, streamData, m_UserCookie);
 			}
 		}
@@ -423,7 +425,7 @@ void TcpReassembly::reassemblePacket(Packet& tcpData)
 		// send the data to the callback
 		if (m_OnMessageReadyCallback != NULL)
 		{
-			TcpStreamData streamData(tcpLayer->getLayerPayload(), tcpPayloadSize, tcpReassemblyData->connData);
+			TcpStreamData streamData(tcpLayer->getLayerPayload(), tcpPayloadSize, tcpReassemblyData->connData, packet_id);
 			m_OnMessageReadyCallback(sideIndex, streamData, m_UserCookie);
 		}
 
@@ -461,6 +463,7 @@ void TcpReassembly::reassemblePacket(Packet& tcpData)
 		newTcpFrag->data = new uint8_t[tcpPayloadSize];
 		newTcpFrag->dataLength = tcpPayloadSize;
 		newTcpFrag->sequence = sequence;
+		newTcpFrag->packet_id = packet_id;
 		memcpy(newTcpFrag->data, tcpLayer->getLayerPayload(), tcpPayloadSize);
 		tcpReassemblyData->twoSides[sideIndex].tcpFragmentList.pushBack(newTcpFrag);
 
@@ -543,7 +546,7 @@ void TcpReassembly::checkOutOfOrderFragments(TcpReassemblyData* tcpReassemblyDat
 
 						if (m_OnMessageReadyCallback != NULL)
 						{
-							TcpStreamData streamData(curTcpFrag->data, curTcpFrag->dataLength, tcpReassemblyData->connData);
+							TcpStreamData streamData(curTcpFrag->data, curTcpFrag->dataLength, tcpReassemblyData->connData, curTcpFrag->packet_id);
 							m_OnMessageReadyCallback(sideIndex, streamData, m_UserCookie);
 						}
 					}
@@ -578,7 +581,7 @@ void TcpReassembly::checkOutOfOrderFragments(TcpReassemblyData* tcpReassemblyDat
 						// send only the new data to the callback
 						if (m_OnMessageReadyCallback != NULL)
 						{
-							TcpStreamData streamData(curTcpFrag->data + newLength, curTcpFrag->dataLength - newLength, tcpReassemblyData->connData);
+							TcpStreamData streamData(curTcpFrag->data + newLength, curTcpFrag->dataLength - newLength, tcpReassemblyData->connData, curTcpFrag->packet_id);
 							m_OnMessageReadyCallback(sideIndex, streamData, m_UserCookie);
 						}
 
@@ -661,7 +664,7 @@ void TcpReassembly::checkOutOfOrderFragments(TcpReassemblyData* tcpReassemblyDat
 					dataWithMissingDataText.insert(dataWithMissingDataText.end(), curTcpFrag->data, curTcpFrag->data + curTcpFrag->dataLength);
 
 					//TcpStreamData streamData(curTcpFrag->data, curTcpFrag->dataLength, tcpReassemblyData->connData);
-					TcpStreamData streamData(&dataWithMissingDataText[0], dataWithMissingDataText.size(), tcpReassemblyData->connData);
+					TcpStreamData streamData(&dataWithMissingDataText[0], dataWithMissingDataText.size(), tcpReassemblyData->connData, curTcpFrag->packet_id);
 					m_OnMessageReadyCallback(sideIndex, streamData, m_UserCookie);
 
 					LOG_DEBUG("Found missing data on side %d: %d byte are missing. Sending the closest fragment which is in size %d + missing text message which size is %d",

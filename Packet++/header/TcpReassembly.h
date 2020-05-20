@@ -159,8 +159,8 @@ public:
 	 * @param[in] tcpDataLength The length of the buffer
 	 * @param[in] connData TCP connection information for this TCP data
 	 */
-	TcpStreamData(const uint8_t* tcpData, size_t tcpDataLength, const ConnectionData& connData)
-		: m_Data(tcpData), m_DataLen(tcpDataLength), m_Connection(connData)
+	TcpStreamData(const uint8_t* tcpData, size_t tcpDataLength, const ConnectionData& connData, uint32_t packet_id = -1)
+		: m_Data(tcpData), m_DataLen(tcpDataLength), m_Connection(connData), m_PacketId(packet_id)
 	{
 	}
 
@@ -186,6 +186,7 @@ private:
 	const uint8_t* m_Data;
 	size_t m_DataLen;
 	const ConnectionData& m_Connection;
+	uint32_t m_PacketId;
 };
 
 
@@ -292,7 +293,7 @@ public:
 	 * existing connection, the relevant callback will be called (TcpReassembly#OnTcpMessageReady, TcpReassembly#OnTcpConnectionStart, TcpReassembly#OnTcpConnectionEnd)
 	 * @param[in] tcpData A reference to the packet to process
 	 */
-	void reassemblePacket(Packet& tcpData);
+	void reassemblePacket(Packet& tcpData, uint32_t packet_id = -1);
 
 	/**
 	 * The most important method of this class which gets a raw packet from the user and processes it. If this packet opens a new connection, ends a connection or contains new data on an
@@ -340,8 +341,9 @@ private:
 		uint32_t sequence;
 		size_t dataLength;
 		uint8_t* data;
+		uint32_t packet_id;
 
-		TcpFragment() { sequence = 0; dataLength = 0; data = NULL; }
+		TcpFragment() { sequence = 0; dataLength = 0; data = NULL; packet_id = -1;}
 		~TcpFragment() { if (data != NULL) delete [] data; }
 	};
 
@@ -385,7 +387,7 @@ private:
 	uint32_t m_MaxNumToClean;
 	time_t m_PurgeTimepoint;
 
-	void checkOutOfOrderFragments(TcpReassemblyData* tcpReassemblyData, int sideIndex, bool cleanWholeFragList);
+	void checkOutOfOrderFragments(TcpReassemblyData* tcpReassemblyData, int sideIndex, bool cleanWholeFragList, uint32_t packet_id=-1);
 
 	std::string prepareMissingDataMessage(uint32_t missingDataLen);
 
